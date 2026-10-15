@@ -1,0 +1,79 @@
+/* Authoritative print layout: A4 reports, landscape project dashboard. */
+@page { size: A4 portrait; margin: 12mm; }
+@page dashboard { size: A4 landscape; margin: 10mm; }
+.print-partner-header { display: none; }
+@media print {
+ *, *::before, *::after { animation: none !important; transition: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box; }
+ html, body, body.mdceo-shell { margin: 0 !important; padding: 0 !important; background: white !important; width: auto !important; height: auto !important; overflow: visible !important; }
+ body { font-size: 10pt; line-height: 1.45; }
+ .mdceo-sidebar, .mdceo-topbar, #navToggleBtn, .mdceo-account-menu, .mdceo-welcome-toast, .dashboard-editor-link, .no-print, .save-bar, #viewOnlyBanner, #printLoadingOverlay, .perf-actions, .perf-detail-toolbar, .perf-dialog, #editPanel, .translate-btn, .btn-print, .btn-print-full, .privileged-only { display: none !important; }
+ .mdceo-main, .wrap, .performance-wrap, .container { width: 100% !important; max-width: none !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; }
+ .project-brand-strip { display: none !important; }
+ .print-partner-header { display: flex !important; gap: 6mm; align-items: center; justify-content: space-between; padding: 0 0 4mm; margin: 0 0 5mm; border-bottom: 1pt solid #a4bdd6; break-inside: avoid; }
+ .print-partner-header img { display: block !important; width: 22%; max-width: 42mm; height: 14mm; object-fit: contain; }
+ .print-partner-header figure { flex:1; min-width:0; margin:0; text-align:center; }
+ .print-partner-header figure img { width:100%; margin:auto; height:12mm; }
+ .print-partner-header figcaption { font-size:7pt; line-height:1.3; color:#53627C; margin-top:1.5mm; }
+ #notificationCenter, #notifyToastHost { display:none !important; }
+ .pf-cover-logos, .cover-logos { display: none !important; }
+ body.printing-full-report > .print-partner-header { display: none !important; }
+ body.print-has-cover > .print-partner-header { display: none !important; }
+ h1 { font-size: 18pt; } h2 { font-size: 12pt; } h3 { font-size: 11pt; }
+ h1,h2,h3,.section-title,.pv-cat-title { break-after: avoid; }
+ p { orphans: 3; widows: 3; }
+ table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+ thead { display: table-header-group; } tfoot { display: table-footer-group; }
+ tr, figure { break-inside: avoid; }
+ th,td { padding: 2.5mm; overflow-wrap: anywhere; }
+ img,canvas,svg { max-width: 100%; }
+ .card,.panel,.perf-card { box-shadow: none !important; border: .6pt solid #cbd5e1 !important; border-radius: 3mm !important; }
+ .report-page { break-after: page; page-break-after: always; height: auto !important; overflow: visible !important; }
+ .report-page:last-child { break-after: auto; page-break-after: auto; }
+ .pf-page { border: 1pt solid #93b9d7 !important; border-radius: 3mm !important; padding: 6mm !important; min-height: 0 !important; height: auto !important; overflow: visible !important; }
+ .pf-body { overflow: visible !important; }
+ .pf-pagenum { position: static !important; margin-top: 4mm; text-align: center; font-size: 8pt; color: #64748b; }
+ .report-page.performance-report-page { page: dashboard; width: 100% !important; max-width:100% !important; height: auto !important; break-inside: avoid !important; page-break-inside: avoid !important; overflow: visible !important; }
+ .performance-report-page .pf-page,.performance-report-page .perf-embed { break-inside: auto !important; page-break-inside: auto !important; }
+ .perf-embed .grid, .perf-embed .cash-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 3mm; }
+ .performance-report-page .pf-page, .performance-report-page .pf-body, .performance-report-page .perf-embed { width:100% !important; max-width:100% !important; min-width:0 !important; }
+ .performance-report-page .perf-embed #perfDashboard { display: grid !important; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 3mm; align-items: start; width:100%; }
+ .performance-report-page .perf-embed #perfDashboard > .grid > .panel:nth-child(2) { grid-column:auto; }
+ .performance-report-page .perf-embed #perfDashboard .panel { min-width:0; overflow-wrap:anywhere; font-size:9pt; }
+ .performance-report-page .perf-embed #perfDashboard > .grid { display: contents; }
+ .performance-report-page .perf-embed #perfDashboard > .grid > div[style*="flex-direction:column"] { display: contents !important; }
+ .performance-report-page .perf-embed #perfDashboard > .panel { grid-column: 1 / -1; }
+ .performance-report-page .perf-embed .chart-box { height: 45mm !important; }
+ .performance-report-page .perf-embed .perf-row .chart-box { height:22mm !important; width:22mm !important; }
+ .performance-report-page .perf-embed .chart-box:has(#perfSpiGauge) { height:18mm !important; width:30mm !important; }
+ .performance-report-page .perf-embed .section-title { font-size:10pt; }
+ .performance-report-page .perf-embed .bar-wrap { flex-wrap:wrap; gap:1mm; }
+ .performance-report-page .perf-embed .bar-track { min-width:40%; }
+ .performance-report-page .perf-embed .cash-item { flex-wrap:wrap; }
+ .performance-report-page .perf-embed table.simple { font-size:7pt; table-layout:fixed; }
+ .performance-report-page .perf-embed table.simple th,.performance-report-page .perf-embed table.simple td { padding:1mm; }
+ .performance-report-page .perf-embed .chart-box img { width: 100% !important; height: 100% !important; object-fit: contain; }
+ .performance-report-page .perf-embed .bar-value { min-width: 70px; }
+ .performance-report-page .perf-embed .chart-logo-slot { display: none; }
+ .perf-embed .panel { break-inside: avoid; padding: 3mm; }
+ .perf-embed .chart-box { height: 55mm; }
+ .cover-card { min-height: 0 !important; height: auto !important; border: 1pt solid #93b9d7 !important; border-radius: 3mm !important; break-after: page; }
+ .cover-inner { padding: 6mm !important; }
+ .cover-titlebar,.pf-cover-titlebar { border-radius: 2mm !important; font-size: 18pt !important; padding: 5mm !important; }
+ .pf-cover-body { padding: 8mm 0 !important; }
+ .photo-print-page { min-height: 0 !important; border: 1pt solid #93b9d7 !important; border-radius: 3mm !important; padding: 5mm !important; }
+ .pv-photo-page-grid,.photo-page-grid { gap: 4mm !important; }
+ .pv-photo-page-grid .pv-photo-block img,.photo-print-page .photo-block img { height: 82mm !important; object-fit: contain; }
+ .pv-photo-page-grid.pv-count-1 .pv-photo-block img,.photo-print-page .pv-count-1 .photo-block img { height: 155mm !important; }
+ .pv-photo-page-grid.pv-count-2 .pv-photo-block img,.photo-print-page .pv-count-2 .photo-block img { height: 115mm !important; }
+ body[data-page="performance"] { page: dashboard; }
+ body[data-page="performance"] .performance-wrap { width: 1046px; break-inside: avoid !important; page-break-inside: avoid !important; margin-inline: auto !important; }
+ body[data-page="performance"] .perf-page-head { display: flex !important; padding: 0 0 4mm; }
+ body[data-page="performance"] .perf-kpis { grid-template-columns: repeat(6,minmax(0,1fr)); gap: 2mm; }
+ body[data-page="performance"] .perf-main-row { grid-template-columns: 2fr 1fr 1fr; gap: 3mm; }
+ body[data-page="performance"] .perf-middle-row, body[data-page="performance"] .perf-lower-row { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 3mm; }
+ body[data-page="performance"] .perf-card { break-inside: avoid; padding: 3mm; }
+ body[data-page="performance"] .perf-legacy-details { display: none !important; }
+ body[data-page="performance"] .perf-legacy-details:not([open]) { display: none !important; }
+ body[data-page="performance"] .perf-project-photo { min-height: 0; height: 40mm; }
+ a { text-decoration: none; }
+}

@@ -1,0 +1,1236 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MDCEO | Project Performance</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- منع أي كاش للصفحة نفسها (Browser cache) -->
+    <meta
+      http-equiv="Cache-Control"
+      content="no-cache, no-store, must-revalidate"
+    />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <script>
+      // فحص فوري: هل فيه نسخة أحدث من نفس الصفحة اتنشرت على GitHub؟ لو آه،
+      // يعمل تحميل كامل تلقائي مرة واحدة — يتخطى كاش المتصفح وكاش GitHub Pages
+      // معاً (منطق الفحص كامل في cache-buster.js المشترك بين كل الصفحات).
+      document.write(
+        '<script src="../assets/js/cache-buster.js?v=' +
+          Date.now() +
+          '"><' +
+          "/script>",
+      );
+    </script>
+    <script>
+      // ----- Print-embed mode -----
+      // When this page is loaded inside the weekly report's combined print
+      // (weekly_report.html adds ?print=1), hide our own header/nav/search UI and
+      // tell the parent window when our data has finished loading and rendering,
+      // via postMessage (works even if the parent can't reach into this document
+      // directly, e.g. when both pages are opened locally via file://).
+      (function () {
+        if (new URLSearchParams(location.search).get("print") !== "1") return;
+
+        var style = document.createElement("style");
+        style.textContent =
+          ".topbar,.header,.nav-container,.search-area-container,.translate-btn{display:none !important;}" +
+          "body{margin:0 !important;padding:0 !important;}" +
+          ".dashboard-container{padding:10px 20px 20px !important;max-width:100% !important;}" +
+          ".wrap{padding:10px 20px 20px !important;max-width:100% !important;}";
+        document.head.appendChild(style);
+
+        function reportReady() {
+          try {
+            var height = Math.max(
+              document.body.scrollHeight,
+              document.documentElement.scrollHeight,
+              1,
+            );
+            window.parent.postMessage(
+              { type: "print-page-ready", height: height },
+              "*",
+            );
+          } catch (e) {
+            /* ignore */
+          }
+        }
+
+        var debounceTimer;
+        function scheduleReport() {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(reportReady, 500);
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+          var mo = new MutationObserver(scheduleReport);
+          mo.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+          });
+          scheduleReport();
+        });
+
+        setTimeout(reportReady, 7000);
+      })();
+    </script>
+    <script>
+      // If this page's content is taller than one A4 page, shrink it so it still
+      // fits on a single printed sheet, WITHOUT changing how anything looks.
+      //
+      // The previous attempt used CSS `zoom`, which is not just a visual shrink —
+      // Chromium treats it like changing the page's DPI, so it also changes what
+      // counts as the viewport width for @media queries and can make Chart.js
+      // re-measure its canvas containers. That is why the printed page looked
+      // different from the screen (layout could flip between the 2-column and
+      // 1-column dashboard breakpoints, and charts could redraw at a different
+      // aspect ratio) even though the paper size came out correct.
+      //
+      // `transform: scale()` does not have either side effect — it only affects
+      // how the finished, already-laid-out page is painted, so every element
+      // (including Chart.js canvases) is measured and rendered exactly as it is
+      // on screen, then the whole result is shrunk like a photo. The one thing
+      // `transform` does NOT do on its own is reduce how much space the browser
+      // reserves for it when paginating for print (a purely-visual shrink still
+      // "takes up" its original, unshrunk footprint) — so it's wrapped in an
+      // outer box whose width/height are explicitly set to the *scaled* size,
+      // which is what actually keeps everything on one sheet.
+      (function () {
+        var PAGE_W = 718; // usable A4 print width in px  (210mm - 2×10mm margins, @96dpi)
+        var PAGE_H = 1010; // usable A4 print height in px (297mm - 2×10mm margins, @96dpi), with a small safety margin
+        var outer = null,
+          inner = null;
+
+        function applyAutoPageFit() {
+          resetPageFit(); // undo any leftover wrap from a previous print first
+
+          var body = document.body;
+          inner = document.createElement("div");
+          inner.id = "printScaleInner";
+          // Move every real content node into `inner` as one rigid unit (skip
+          // <script> tags — moving them doesn't re-run them anyway, and there's
+          // no need to).
+          Array.prototype.slice.call(body.children).forEach(function (el) {
+            if (el.tagName === "SCRIPT") return;
+            inner.appendChild(el);
+          });
+          body.appendChild(inner);
+
+          // Let the content size itself naturally (no forced width) before
+          // measuring, so `w`/`h` reflect how big the dashboard actually wants
+          // to be, not the page's width.
+          inner.style.width = "max-content";
+          var w = Math.max(inner.scrollWidth, 1);
+          var h = Math.max(inner.scrollHeight, 1);
+          // No upper cap at 1 here on purpose: once the grid is forced back to
+          // its wide desktop columns above, the dashboard is often *shorter*
+          // than a full A4 page, and capping the scale at 1 left it sitting
+          // small in the top-left corner with blank space on the right and
+          // bottom. Scaling up to whichever dimension is the tighter fit makes
+          // it fill the page either edge-to-edge horizontally or top-to-bottom
+          // vertically (never both perfectly unless the aspect ratios match,
+          // in which case it fills completely).
+          var scale = Math.min(PAGE_W / w, PAGE_H / h);
+
+          outer = document.createElement("div");
+          outer.id = "printScaleOuter";
+          var outW = w * scale,
+            outH = h * scale;
+          outer.style.width = outW + "px";
+          outer.style.height = outH + "px";
+          outer.style.overflow = "hidden";
+          // Center on the page in whichever dimension has leftover space:
+          // margin:auto handles the horizontal side (block-level centering),
+          // and an explicit top margin balances the page above/below it
+          // vertically.
+          outer.style.margin = Math.max(0, (PAGE_H - outH) / 2) + "px auto 0";
+
+          inner.style.width = w + "px";
+          inner.style.transformOrigin = "top left";
+          inner.style.transform = "scale(" + scale + ")";
+
+          body.insertBefore(outer, inner);
+          outer.appendChild(inner);
+        }
+
+        function resetPageFit() {
+          if (!outer || !inner) return;
+          var body = document.body;
+          Array.prototype.slice.call(inner.children).forEach(function (el) {
+            body.insertBefore(el, outer);
+          });
+          outer.remove();
+          outer = null;
+          inner = null;
+        }
+
+        window.addEventListener("beforeprint", applyAutoPageFit);
+        window.addEventListener("afterprint", resetPageFit);
+        // Belt-and-suspenders: some browsers/print flows (e.g. print triggered
+        // from a parent window) fire matchMedia's print change more reliably
+        // than beforeprint/afterprint. Both are safe to wire since the
+        // functions above are idempotent.
+        if (window.matchMedia) {
+          var mql = window.matchMedia("print");
+          var onChange = function (e) {
+            if (e.matches) applyAutoPageFit();
+            else resetPageFit();
+          };
+          if (mql.addEventListener) mql.addEventListener("change", onChange);
+          else if (mql.addListener) mql.addListener(onChange);
+        }
+      })();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+      // تحميل auth-guard.js برقم إصدار مختلف في كل مرة، عشان أي تحديث
+      // يترفع على GitHub يوصل فورًا للمستخدمين من غير ما يتحبس في الكاش.
+      document.write(
+        '<script src="../assets/js/auth-guard.js?v=' +
+          Date.now() +
+          '"><' +
+          "/script>",
+      );
+      document.write(
+        '<script src="../assets/js/notify.js?v=' + Date.now() + '"><' + "/script>",
+      );
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+
+    <script>
+      window.MDCEO_SHELL_CONFIG = {
+        searchRecords: true,
+        accountContainer: "#perfProfile",
+        labels: {
+          en: {
+            dashboard: "Executive Overview",
+            performance: "Project Performance",
+            schedule: "Primavera Schedule",
+            activity: "Activity Progress",
+            risk: "Risk Management",
+            warnings: "Alerts & Early Warnings",
+            reports: "Weekly Reports",
+            financial: "Financial Performance",
+            documents: "Project Documents",
+            photographs: "Site Photographs",
+          },
+          ar: {
+            dashboard: "النظرة التنفيذية",
+            performance: "أداء المشروع",
+            schedule: "جدول بريمافيرا",
+            activity: "تقدم الأنشطة",
+            risk: "إدارة المخاطر",
+            warnings: "التنبيهات والإنذارات المبكرة",
+            reports: "التقارير الأسبوعية",
+            financial: "الأداء المالي",
+            documents: "مستندات المشروع",
+            photographs: "صور الموقع",
+          },
+        },
+        routes: [
+          ["performance.html", "dashboard"],
+          ["#performanceDetails", "performance"],
+          ["#scheduleDetails", "schedule"],
+          ["#weeklyHistory", "activity"],
+          ["#riskDetails", "risk"],
+          ["#warningsDetails", "warnings"],
+          ["weekly_report.html", "reports"],
+          ["#financialDetails", "financial"],
+          ["#projectPhoto", "photographs"],
+        ],
+        icons: {
+          dashboard: "fa-chart-column",
+          performance: "fa-people-group",
+          schedule: "fa-calendar-days",
+          activity: "fa-list-check",
+          risk: "fa-triangle-exclamation",
+          warnings: "fa-bell",
+          reports: "fa-file-lines",
+          financial: "fa-chart-line",
+          documents: "fa-folder",
+          photographs: "fa-camera",
+          administration: "fa-gear",
+        },
+      };
+    </script>
+    
+    
+    <link rel="stylesheet" href="../assets/css/main.css">
+<link rel="stylesheet" href="../assets/css/performance-dashboard.css?v=1" />
+    <script src="../assets/js/nav-toggle.js?v=2" defer></script>
+    <script src="../assets/js/components.js?v=2" defer></script>
+    <script src="../assets/js/lang.js?v=3" defer></script>
+    <script src="../assets/js/performance-model.js?v=1" defer></script>
+    <script src="../assets/js/data-service.js?v=1" defer></script>
+    <script src="../assets/js/main.js" defer></script>
+<script src="../assets/js/shell.js?v=3" defer></script>
+    <script src="../assets/js/performance-dashboard.js?v=1" defer></script>
+  <link rel="stylesheet" href="../assets/css/print.css">
+<script src="../assets/js/typography.js" defer></script>
+<script src="../assets/js/project-settings.js" defer></script>
+<script src="../assets/js/project-branding.js" defer></script>
+<script src="../assets/js/portal-locale.js" defer></script>
+<script src="../assets/js/print.js" defer></script>
+<script src="../assets/js/security.js"></script>
+</head>
+  <body data-page="performance">
+    <div class="header perf-shell-anchor" hidden></div>
+    <nav class="nav-container" aria-label="Project navigation"></nav>
+    <div class="performance-wrap">
+      <header class="perf-page-head">
+        <nav class="perf-breadcrumb" aria-label="Breadcrumb">
+          <a href="performance.html" data-i18n="home">Home</a
+          ><span aria-hidden="true">›</span
+          ><span data-i18n="overview">Executive Overview</span>
+        </nav>
+        <h1 data-i18n="overview">Executive Overview</h1>
+      </header>
+      <div id="performanceError" class="perf-state-banner" role="status" hidden>
+        <span data-i18n="loadError"
+          >Performance records could not be loaded.</span
+        ><button
+          class="perf-button secondary"
+          id="retryPerformance"
+          data-i18n="retry"
+        >
+          Retry
+        </button>
+      </div>
+      <div id="loadingMsg" role="status" aria-live="polite">
+        <span data-i18n="loading">Loading project records…</span>
+        <div class="perf-loading-grid" aria-hidden="true">
+          <div class="mdceo-skeleton"></div>
+          <div class="mdceo-skeleton"></div>
+          <div class="mdceo-skeleton"></div>
+          <div class="mdceo-skeleton"></div>
+          <div class="mdceo-skeleton"></div>
+          <div class="mdceo-skeleton"></div>
+        </div>
+      </div>
+      <div id="dashboard" hidden>
+        <div class="perf-kpis">
+          <section class="perf-card perf-kpi">
+            <span class="perf-icon"
+              ><i class="fa-solid fa-chart-column" aria-hidden="true"></i
+            ></span>
+            <div>
+              <strong id="kpiActual">—</strong
+              ><span class="perf-kpi-label" data-i18n="actualProgress"
+                >Actual Progress</span
+              ><span class="perf-kpi-trend" id="deltaActual"></span>
+              <div class="perf-spark">
+                <canvas id="sparkActual" aria-hidden="true"></canvas>
+              </div>
+            </div>
+          </section>
+          <section class="perf-card perf-kpi">
+            <span class="perf-icon secondary"
+              ><i class="fa-solid fa-chart-line" aria-hidden="true"></i
+            ></span>
+            <div>
+              <strong id="kpiPlanned">—</strong
+              ><span class="perf-kpi-label" data-i18n="plannedProgress"
+                >Planned Progress</span
+              ><span class="perf-kpi-trend" id="deltaPlanned"></span>
+              <div class="perf-spark">
+                <canvas id="sparkPlanned" aria-hidden="true"></canvas>
+              </div>
+            </div>
+          </section>
+          <section class="perf-card perf-kpi">
+            <span class="perf-icon danger"
+              ><i class="fa-solid fa-chart-simple" aria-hidden="true"></i
+            ></span>
+            <div>
+              <strong id="kpiVariance">—</strong
+              ><span class="perf-kpi-label" data-i18n="progressVariance"
+                >Progress Variance</span
+              ><span class="perf-kpi-trend" id="deltaVariance"></span>
+              <div class="perf-spark">
+                <canvas id="sparkVariance" aria-hidden="true"></canvas>
+              </div>
+            </div>
+          </section>
+          <section class="perf-card perf-kpi">
+            <span class="perf-icon teal"
+              ><i class="fa-solid fa-gauge-high" aria-hidden="true"></i
+            ></span>
+            <div>
+              <strong id="kpiSpi">—</strong
+              ><span class="perf-kpi-label" data-i18n="spiLabel"
+                >Schedule Performance Index</span
+              ><span class="perf-kpi-trend" data-i18n="currentRecord"
+                >Current record</span
+              >
+              <div class="perf-spark">
+                <canvas id="sparkSpi" aria-hidden="true"></canvas>
+              </div>
+            </div>
+          </section>
+          <section class="perf-card perf-kpi">
+            <span class="perf-icon purple"
+              ><i class="fa-regular fa-file-lines" aria-hidden="true"></i
+            ></span>
+            <div>
+              <strong id="kpiContract">—</strong
+              ><span class="perf-kpi-label" data-i18n="contractValue"
+                >Contract Value</span
+              ><span class="perf-kpi-trend" data-i18n="excludingVat"
+                >Excluding VAT</span
+              >
+              <div class="perf-spark">
+                <canvas id="sparkContract" aria-hidden="true"></canvas>
+              </div>
+            </div>
+          </section>
+          <section class="perf-card perf-kpi">
+            <span class="perf-icon secondary"
+              ><i class="fa-solid fa-file-invoice" aria-hidden="true"></i
+            ></span>
+            <div>
+              <strong id="kpiInvoice">—</strong
+              ><span class="perf-kpi-label" data-i18n="invoicedAmount"
+                >Invoiced Amount</span
+              ><span class="perf-kpi-trend" id="invoiceRatio"></span>
+              <div class="perf-spark">
+                <canvas id="sparkInvoice" aria-hidden="true"></canvas>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="perf-main-row">
+          <section class="perf-card perf-panel">
+            <div class="perf-panel-head">
+              <h2 data-i18n="progressCurve">
+                Planned vs Actual Progress (S-Curve)
+              </h2>
+              <select
+                id="curvePeriod"
+                class="perf-select"
+                aria-label="Chart reporting periods"
+              >
+                <option value="all" data-i18n="allPeriods">All periods</option>
+                <option value="12" data-i18n="last12">Last 12 periods</option>
+                <option value="6" data-i18n="last6">
+                  Last 6 periods
+                </option></select
+              ><button
+                class="perf-quiet-button"
+                id="exportWeekly"
+                aria-label="Export progress CSV"
+              >
+                <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div class="perf-chart">
+              <canvas
+                id="progressCurve"
+                role="img"
+                aria-label="Planned and approved actual construction progress"
+              ></canvas>
+              <div id="curveEmpty" class="perf-empty" hidden>
+                <strong data-i18n="noHistory">No progress history</strong>
+                <p data-i18n="noHistoryHint">
+                  Approved weekly records will appear here.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="perf-card perf-panel">
+            <div class="perf-panel-head">
+              <h2 data-i18n="projectStatus">Project Status</h2>
+              <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+            </div>
+            <div id="statusContent" class="perf-status-content" hidden>
+              <div class="perf-donut-wrap">
+                <canvas
+                  id="projectStatusChart"
+                  role="img"
+                  aria-label="Activity status distribution"
+                ></canvas>
+                <div class="perf-donut-center">
+                  <strong id="statusPercent">—</strong
+                  ><span data-i18n="completed">Completed</span>
+                </div>
+              </div>
+              <div id="statusLegend" class="perf-status-legend"></div>
+            </div>
+            <div id="statusEmpty" class="perf-empty perf-status-empty">
+              <strong data-i18n="noSchedule">Schedule unavailable</strong>
+              <p data-i18n="noScheduleHint">
+                Activity status requires a connected schedule.
+              </p>
+            </div>
+            <p id="statusDate" class="perf-chart-footnote"></p>
+          </section>
+          <section class="perf-card perf-project-card" id="projectPhoto">
+            <div class="perf-project-photo">
+              <div class="perf-project-art" aria-hidden="true"><i class="fa-solid fa-industry"></i></div>
+              <div class="perf-project-caption">
+                <strong class="perf-project-name">AMCO FACTORY</strong
+                ><small id="projectLocation"></small>
+              </div>
+            </div>
+            <div class="perf-project-body">
+              <div class="perf-project-dates">
+                <div>
+                  <i class="fa-regular fa-calendar-days" aria-hidden="true"></i
+                  ><span
+                    ><span data-i18n="startDate">Start Date</span
+                    ><strong id="projectStart">—</strong></span
+                  >
+                </div>
+                <div>
+                  <i class="fa-regular fa-calendar-days" aria-hidden="true"></i
+                  ><span
+                    ><span data-i18n="finishDate">Finish Date</span
+                    ><strong id="projectFinish">—</strong></span
+                  >
+                </div>
+              </div>
+              <div class="perf-project-progress">
+                <div class="perf-track"><span id="overallBar"></span></div>
+                <strong id="overallPercent">—</strong>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="perf-actions">
+          <a href="#scheduleDetails" class="perf-card perf-action"
+            ><span class="perf-icon"
+              ><i
+                class="fa-regular fa-calendar-days"
+                aria-hidden="true"
+              ></i></span
+            ><span
+              ><strong data-i18n="viewSchedule">View Primavera Schedule</strong
+              ><small data-i18n="openSchedule"
+                >Open project schedule</small
+              ></span
+            ></a
+          >
+          <a
+            href="#weeklyHistory"
+            class="perf-card perf-action"
+            id="progressAction"
+            ><span class="perf-icon teal"
+              ><i class="fa-solid fa-check" aria-hidden="true"></i></span
+            ><span
+              ><strong data-i18n="updateProgress"
+                >Update Activity Progress</strong
+              ><small data-i18n="approvedHistory"
+                >Review approved reporting periods</small
+              ></span
+            ></a
+          >
+          <a href="#riskDetails" class="perf-card perf-action"
+            ><span class="perf-icon danger"
+              ><i
+                class="fa-solid fa-triangle-exclamation"
+                aria-hidden="true"
+              ></i></span
+            ><span
+              ><strong data-i18n="viewRisks">View Project Risks</strong
+              ><small data-i18n="reviewRisks"
+                >Review the risk register</small
+              ></span
+            ></a
+          >
+          <a href="#warningsDetails" class="perf-card perf-action"
+            ><span class="perf-icon"
+              ><i class="fa-solid fa-bell" aria-hidden="true"></i></span
+            ><span
+              ><strong data-i18n="viewWarnings">View Warnings</strong
+              ><small data-i18n="checkAlerts">Check project alerts</small></span
+            ></a
+          >
+          <a href="weekly_report.html" class="perf-card perf-action"
+            ><span class="perf-icon"
+              ><i class="fa-regular fa-file-lines" aria-hidden="true"></i></span
+            ><span
+              ><strong data-i18n="generateWeekly">Generate Weekly Report</strong
+              ><small data-i18n="createReport"
+                >Create a project report</small
+              ></span
+            ></a
+          >
+        </div>
+        <div class="perf-middle-row">
+          <section class="perf-card perf-panel">
+            <div class="perf-panel-head">
+              <h2 data-i18n="milestones">Key Milestones</h2>
+              <a href="#scheduleDetails" data-i18n="viewAll">View All</a>
+            </div>
+            <div id="milestoneList" class="perf-milestones"></div>
+          </section>
+          <section class="perf-card perf-panel">
+            <div class="perf-panel-head">
+              <h2 data-i18n="topDelays">Top 5 Delayed Activities</h2>
+              <a href="#delayDetails" data-i18n="viewAll">View All</a>
+            </div>
+            <div id="delayTable"></div>
+          </section>
+          <section class="perf-card perf-panel">
+            <div class="perf-panel-head">
+              <h2 data-i18n="financialSummary">Project Financial Summary</h2>
+              <span class="perf-select">SAR</span>
+            </div>
+            <div class="perf-finances" id="financialSummary"></div>
+          </section>
+        </div>
+        <div class="perf-lower-row">
+          <section class="perf-card perf-panel">
+            <div class="perf-panel-head">
+              <h2 data-i18n="manpowerHistogram">Manpower Histogram</h2>
+              <select
+                id="manpowerPeriod"
+                class="perf-select"
+                aria-label="Manpower reporting periods"
+              >
+                <option value="all" data-i18n="allPeriods">All periods</option>
+                <option value="12" data-i18n="last12">Last 12 periods</option>
+              </select>
+            </div>
+            <div class="perf-chart">
+              <canvas
+                id="manpowerChart"
+                role="img"
+                aria-label="Planned versus actual manpower by reporting period"
+              ></canvas>
+              <div id="manpowerEmpty" class="perf-empty" hidden>
+                <strong data-i18n="noManpower">No manpower history</strong>
+                <p data-i18n="noManpowerHint">
+                  Recorded staffing periods will appear here.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="perf-card perf-panel">
+            <div class="perf-panel-head">
+              <i class="fa-solid fa-people-group" aria-hidden="true"></i>
+              <h2 data-i18n="disciplineProgress">Discipline Progress</h2>
+              <a href="#scheduleDetails" data-i18n="viewAll">View All</a>
+            </div>
+            <div id="disciplineList" class="perf-disciplines"></div>
+          </section>
+          <section class="perf-card perf-panel">
+            <div class="perf-panel-head">
+              <i
+                class="fa-solid fa-triangle-exclamation"
+                aria-hidden="true"
+              ></i>
+              <h2 data-i18n="riskWarnings">Risk &amp; Early Warnings</h2>
+              <a href="#warningsDetails" data-i18n="viewAll">View All</a>
+            </div>
+            <div class="perf-risk-counts">
+              <div class="perf-risk-count critical">
+                <i
+                  class="fa-solid fa-circle-exclamation"
+                  aria-hidden="true"
+                ></i>
+                <strong id="criticalRisks">—</strong>
+                <span data-i18n="criticalRisks">Critical Risks</span>
+              </div>
+              <div class="perf-risk-count high">
+                <i
+                  class="fa-solid fa-triangle-exclamation"
+                  aria-hidden="true"
+                ></i>
+                <strong id="highRisks">—</strong>
+                <span data-i18n="highRisks">High Risks</span>
+              </div>
+              <div class="perf-risk-count">
+                <i class="fa-solid fa-bell" aria-hidden="true"></i>
+                <strong id="activeAlerts">—</strong>
+                <span data-i18n="activeAlerts">Active Alerts</span>
+              </div>
+            </div>
+            <div id="recentWarnings"></div>
+          </section>
+        </div>
+        <p id="scheduleSourceNote" class="perf-snapshot-note"></p>
+        <p id="performanceSourceNote" class="perf-snapshot-note"></p>
+        <details class="perf-card perf-legacy-details" id="performanceDetails">
+          <summary data-i18n="detailsTitle">
+            Performance details &amp; historical records
+          </summary>
+          <div class="perf-detail-toolbar">
+            <span id="updatedMeta"></span
+            ><button
+              class="perf-button secondary"
+              onclick="window.print()"
+              data-i18n="print"
+            >
+              Print</button
+            ><button
+              class="perf-button secondary"
+              id="exportPerformance"
+              data-i18n="exportCsv"
+            >
+              Export CSV</button
+            ><button
+              class="perf-button admin-only"
+              id="editToggleBtn"
+              onclick="toggleEditMode()"
+              hidden
+              data-i18n="editData"
+            >
+              Edit Data
+            </button>
+          </div>
+          <div class="perf-detail-grid">
+            <section id="financialDetails">
+              <h2 data-i18n="contractInfo">Contract Information</h2>
+              <dl>
+                <dt data-i18n="noVat">Contract Value without VAT</dt>
+                <dd id="valNoVat">—</dd>
+                <dt data-i18n="withVat">Contract Value with VAT</dt>
+                <dd id="valVat">—</dd>
+                <dt data-i18n="changeOrder">Approved Change Order</dt>
+                <dd id="valChangeOrder">—</dd>
+                <dt data-i18n="phase1Finish">Contract Finish Date (Phase 1)</dt>
+                <dd id="valPhase1">—</dd>
+                <dt data-i18n="eotFinish">Finish Date After EOT</dt>
+                <dd id="valEot">—</dd>
+                <dt data-i18n="expectedFinish">Expected Finish Date</dt>
+                <dd id="valExpected">—</dd>
+                <dt data-i18n="directPlanned">Direct Planned (Person)</dt>
+                <dd id="manpowerPlanned">—</dd>
+                <dt data-i18n="directActual">Direct Actual (Person)</dt>
+                <dd id="manpowerActual">—</dd>
+                <dt data-i18n="spi">SPI</dt>
+                <dd id="spiValue">—</dd>
+              </dl>
+            </section>
+            <section>
+              <h2 data-i18n="cashFlow">Cash Flow (SAR)</h2>
+              <dl>
+                <dt data-i18n="ev">Earned Value (EV)</dt>
+                <dd id="cfEv1">—</dd>
+                <dt data-i18n="ai">Actual Invoice (AI)</dt>
+                <dd id="cfAi">—</dd>
+                <dt data-i18n="pv">Planned Value (PV)</dt>
+                <dd id="cfPv">—</dd>
+                <dt data-i18n="aiEvVariance">Variance (AI − EV)</dt>
+                <dd id="cfVarAiEv">—</dd>
+                <dt data-i18n="evPvVariance">Variance (EV − PV)</dt>
+                <dd id="cfVarEvPv">—</dd>
+              </dl>
+              <p class="perf-snapshot-note" data-i18n="invoiceIsNotCost">
+                Invoiced amounts are not actual project costs.
+              </p>
+            </section>
+            <section>
+              <h2 data-i18n="costHistory">S-Curve — Weekly Cost</h2>
+              <div class="perf-detail-chart">
+                <canvas
+                  id="scurveChart"
+                  role="img"
+                  aria-label="Recorded planned and actual weekly costs"
+                ></canvas>
+              </div>
+              <div class="perf-scroll-table" id="costHistoryTable"></div>
+            </section>
+            <section>
+              <h2 data-i18n="weeklyChart">
+                Planned vs Actual — Reporting Periods
+              </h2>
+              <div class="perf-detail-chart">
+                <canvas
+                  id="plannedActualChart"
+                  role="img"
+                  aria-label="Approved weekly progress history"
+                ></canvas>
+              </div>
+            </section>
+            <section class="perf-wide-detail">
+              <h2 data-i18n="manpowerSpi">Manpower &amp; SPI</h2>
+              <div class="perf-legacy-gauges">
+                <div>
+                  <div class="perf-detail-gauge">
+                    <canvas
+                      id="actualGauge"
+                      role="img"
+                      aria-label="Approved actual progress gauge"
+                    ></canvas>
+                  </div>
+                  <span data-i18n="actualProgress">Actual Progress</span
+                  ><strong id="detailActual">—</strong>
+                </div>
+                <div>
+                  <div class="perf-detail-gauge">
+                    <canvas
+                      id="plannedGauge"
+                      role="img"
+                      aria-label="Planned progress gauge"
+                    ></canvas>
+                  </div>
+                  <span data-i18n="plannedProgress">Planned Progress</span
+                  ><strong id="detailPlanned">—</strong>
+                </div>
+                <div>
+                  <div class="perf-detail-gauge">
+                    <canvas
+                      id="spiGauge"
+                      role="img"
+                      aria-label="Schedule performance index gauge"
+                    ></canvas>
+                  </div>
+                  <span data-i18n="spi">SPI</span
+                  ><strong id="detailSpi">—</strong>
+                </div>
+              </div>
+            </section>
+            <section class="perf-wide-detail" id="weeklyHistory">
+              <h2 data-i18n="weeklyHistory">Weekly Table — Percentages</h2>
+              <div class="perf-scroll-table">
+                <table class="perf-data-table" id="weeklyTable">
+                  <thead>
+                    <tr>
+                      <th data-i18n="period">Period</th>
+                      <th data-i18n="actual">Actual</th>
+                      <th data-i18n="planned">Planned</th>
+                      <th data-i18n="variance">Variance</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="perf-wide-detail" id="scheduleDetails">
+              <h2 data-i18n="scheduleDetails">Primavera Schedule Snapshot</h2>
+              <p id="scheduleDetailNote" class="perf-snapshot-note"></p>
+              <div class="perf-detail-toolbar">
+                <label for="scheduleSearch" data-i18n="searchActivities"
+                  >Search activities</label
+                ><input type="search" id="scheduleSearch" /><button
+                  class="perf-button secondary"
+                  id="exportSchedule"
+                  data-i18n="exportCsv"
+                >
+                  Export CSV
+                </button>
+              </div>
+              <div class="perf-schedule-register" id="scheduleRegister"></div>
+            </section>
+            <section class="perf-wide-detail" id="delayDetails">
+              <h2 data-i18n="delayedActivities">Delayed Activities</h2>
+              <p class="perf-snapshot-note" data-i18n="delayMethod">
+                Calendar days from planned finish to the schedule data date, or
+                forecast finish slip. Float is not elapsed delay.
+              </p>
+              <div id="allDelays"></div>
+            </section>
+            <section id="riskDetails">
+              <h2 data-i18n="riskRegister">Risk Register</h2>
+              <div id="riskRegister"></div>
+            </section>
+            <section id="warningsDetails">
+              <h2 data-i18n="earlyWarnings">Early Warnings</h2>
+              <div id="warningRegister"></div>
+            </section>
+          </div>
+        </details>
+      </div>
+    </div>
+    <dialog class="perf-dialog" id="recordDialog" aria-labelledby="recordTitle">
+      <div class="perf-panel-head">
+        <h2 id="recordTitle"></h2>
+        <button class="perf-dialog-close" id="closeRecord" aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div id="recordContent"></div>
+    </dialog>
+
+    <div id="editPanel">
+      <div class="edit-panel-inner">
+        <div class="edit-section-title" data-i18n="contractInfo">
+          Contract Information
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label data-i18n="noVat" for="f_contract_value_no_vat"
+              >Contract Value without VAT</label
+            ><input type="number" step="0.01" id="f_contract_value_no_vat" />
+          </div>
+          <div class="field">
+            <label data-i18n="withVat" for="f_contract_value_vat"
+              >Contract Value with VAT</label
+            ><input type="number" step="0.01" id="f_contract_value_vat" />
+          </div>
+          <div class="field">
+            <label data-i18n="changeOrder" for="f_approved_change_order"
+              >Approved Change Order</label
+            ><input type="text" id="f_approved_change_order" />
+          </div>
+        </div>
+
+        <div class="edit-section-title" data-i18n="projectDates">
+          Project Dates
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label data-i18n="phase1Finish" for="f_contract_finish_phase1"
+              >Contract Finish Date (Phase 1)</label
+            ><input type="date" id="f_contract_finish_phase1" />
+          </div>
+          <div class="field">
+            <label data-i18n="eotFinish" for="f_finish_date_after_eot"
+              >Finish Date After EOT</label
+            ><input type="date" id="f_finish_date_after_eot" />
+          </div>
+          <div class="field">
+            <label data-i18n="expectedFinish" for="f_expected_finish_date"
+              >Expected Finish Date</label
+            ><input type="date" id="f_expected_finish_date" />
+          </div>
+        </div>
+
+        <div class="edit-section-title" data-i18n="manpowerSpi">
+          Manpower &amp; SPI
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label data-i18n="directPlanned" for="f_manpower_planned"
+              >Direct Planned (Person)</label
+            ><input type="number" id="f_manpower_planned" />
+          </div>
+          <div class="field">
+            <label data-i18n="directActual" for="f_manpower_actual"
+              >Direct Actual (Person)</label
+            ><input type="number" id="f_manpower_actual" />
+          </div>
+          <div class="field">
+            <label data-i18n="spi" for="f_spi">SPI</label
+            ><input type="number" step="0.01" id="f_spi" />
+          </div>
+        </div>
+
+        <div class="edit-section-title" data-i18n="cashFlow">
+          Cash Flow (SAR)
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label data-i18n="ev" for="f_cash_flow_ev">Cash Flow (EV)</label
+            ><input type="number" step="0.01" id="f_cash_flow_ev" />
+          </div>
+          <div class="field">
+            <label data-i18n="ai" for="f_cash_flow_ai"
+              >Actual Invoice (AI)</label
+            ><input type="number" step="0.01" id="f_cash_flow_ai" />
+          </div>
+          <div class="field">
+            <label data-i18n="pv" for="f_cash_flow_pv">Planned Value (PV)</label
+            ><input type="number" step="0.01" id="f_cash_flow_pv" />
+          </div>
+        </div>
+
+        <div class="edit-section-title">
+          Weekly Table (Planned vs Actual) — Percentages
+        </div>
+        <div class="rows-editor" id="weeklyRows"></div>
+        <button
+          type="button"
+          class="row-add"
+          onclick="addRow('weeklyRows', weeklyRowTemplate)"
+        >
+          <span data-i18n="addPeriod">+ Add period</span>
+        </button>
+
+        <div class="edit-section-title">S-Curve — Weekly Cost</div>
+        <div class="rows-editor" id="scurveRows"></div>
+        <button
+          type="button"
+          class="row-add"
+          onclick="addRow('scurveRows', scurveRowTemplate)"
+        >
+          <span data-i18n="addPeriod">+ Add period</span>
+        </button>
+
+        <div class="edit-section-title">Manpower Histogram — Weekly</div>
+        <div class="rows-editor" id="manpowerRows"></div>
+        <button
+          type="button"
+          class="row-add"
+          onclick="addRow('manpowerRows', manpowerRowTemplate)"
+        >
+          <span data-i18n="addPeriod">+ Add period</span>
+        </button>
+
+        <div class="save-bar">
+          <span class="save-status" id="saveStatus"></span>
+          <button
+            class="btn-cancel"
+            onclick="toggleEditMode()"
+            data-i18n="cancel"
+          >
+            Cancel
+          </button>
+          <button
+            class="btn-save"
+            onclick="saveDashboard()"
+            data-i18n="saveChanges"
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="accessdenied"></div>
+
+    <script>
+      var currentData = null;
+      const client = window.__guardClient;
+      function escapeAttr(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;");
+      }
+      function nullableNumber(value) {
+        if (value === null || value === undefined || value === "") return null;
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+      }
+      function weeklyRowTemplate(r) {
+        r = r || { week: "", actual: "", plan: "" };
+        return `
+    <input type="text" placeholder="${escapeAttr(T("weekPlaceholder"))}" aria-label="${escapeAttr(T("weekPlaceholder"))}" class="w-week" value="${escapeAttr(r.week)}">
+    <input type="number" step="0.01" placeholder="${escapeAttr(T("actualPlaceholder"))}" aria-label="${escapeAttr(T("actualPlaceholder"))}" class="w-actual" value="${escapeAttr(r.actual)}">
+    <input type="number" step="0.01" placeholder="${escapeAttr(T("plannedPlaceholder"))}" aria-label="${escapeAttr(T("plannedPlaceholder"))}" class="w-plan" value="${escapeAttr(r.plan)}">
+    <button type="button" class="row-remove" aria-label="${escapeAttr(T("removePeriod"))}" onclick="this.closest('.row-line').remove()">✕</button>
+  `;
+      }
+      function scurveRowTemplate(r) {
+        r = r || { week: "", planned_cost: "", actual_cost: "" };
+        return `
+    <input type="text" placeholder="${escapeAttr(T("weekPlaceholder"))}" aria-label="${escapeAttr(T("weekPlaceholder"))}" class="s-week" value="${escapeAttr(r.week)}">
+    <input type="number" step="0.01" placeholder="${escapeAttr(T("plannedCostPlaceholder"))}" aria-label="${escapeAttr(T("plannedCostPlaceholder"))}" class="s-planned" value="${escapeAttr(r.planned_cost)}">
+    <input type="number" step="0.01" placeholder="${escapeAttr(T("actualCostPlaceholder"))}" aria-label="${escapeAttr(T("actualCostPlaceholder"))}" class="s-actual" value="${escapeAttr(r.actual_cost)}">
+    <button type="button" class="row-remove" aria-label="${escapeAttr(T("removePeriod"))}" onclick="this.closest('.row-line').remove()">✕</button>
+  `;
+      }
+      function manpowerRowTemplate(r) {
+        r = r || { week: "", planned: "", actual: "" };
+        return `
+    <input type="text" placeholder="${escapeAttr(T("weekPlaceholder"))}" aria-label="${escapeAttr(T("weekPlaceholder"))}" class="m-week" value="${escapeAttr(r.week)}">
+    <input type="number" step="0.01" placeholder="${escapeAttr(T("planned"))}" aria-label="${escapeAttr(T("planned"))}" class="m-planned" value="${escapeAttr(r.planned)}">
+    <input type="number" step="0.01" placeholder="${escapeAttr(T("actual"))}" aria-label="${escapeAttr(T("actual"))}" class="m-actual" value="${escapeAttr(r.actual)}">
+    <button type="button" class="row-remove" aria-label="${escapeAttr(T("removePeriod"))}" onclick="this.closest('.row-line').remove()">✕</button>
+  `;
+      }
+      function addRow(containerId, templateFn, data) {
+        const div = document.createElement("div");
+        div.className = "row-line";
+        div.innerHTML = templateFn(data);
+        div._source = data || {};
+        document.getElementById(containerId).appendChild(div);
+      }
+      function clearAndFillRows(containerId, templateFn, rows) {
+        const el = document.getElementById(containerId);
+        el.innerHTML = "";
+        (rows || []).forEach((r) => addRow(containerId, templateFn, r));
+      }
+
+      function toDateInput(d) {
+        if (!d) return "";
+        return window.MDCEOPerformanceModel.date(d) || "";
+      }
+
+      function populateEditForm(data) {
+        document.getElementById("f_contract_value_no_vat").value =
+          data.contract_value_no_vat ?? "";
+        document.getElementById("f_contract_value_vat").value =
+          data.contract_value_vat ?? "";
+        document.getElementById("f_approved_change_order").value =
+          data.approved_change_order ?? "";
+        document.getElementById("f_contract_finish_phase1").value = toDateInput(
+          data.contract_finish_phase1,
+        );
+        document.getElementById("f_finish_date_after_eot").value = toDateInput(
+          data.finish_date_after_eot,
+        );
+        document.getElementById("f_expected_finish_date").value = toDateInput(
+          data.expected_finish_date,
+        );
+        document.getElementById("f_manpower_planned").value =
+          data.manpower_planned ?? "";
+        document.getElementById("f_manpower_actual").value =
+          data.manpower_actual ?? "";
+        document.getElementById("f_spi").value = data.spi ?? "";
+        document.getElementById("f_cash_flow_ev").value =
+          data.cash_flow_ev ?? "";
+        document.getElementById("f_cash_flow_ai").value =
+          data.cash_flow_ai ?? "";
+        document.getElementById("f_cash_flow_pv").value =
+          data.cash_flow_pv ?? "";
+
+        clearAndFillRows("weeklyRows", weeklyRowTemplate, data.weekly_table);
+        clearAndFillRows("scurveRows", scurveRowTemplate, data.scurve_data);
+        clearAndFillRows(
+          "manpowerRows",
+          manpowerRowTemplate,
+          data.manpower_data,
+        );
+      }
+
+      function toggleEditMode() {
+        if (window.canEditDashboard !== true) return;
+        const dash = document.getElementById("dashboard");
+        const panel = document.getElementById("editPanel");
+        const opening = panel.style.display !== "block";
+        if (opening) {
+          if (currentData) populateEditForm(currentData);
+          dash.style.display = "none";
+          panel.style.display = "block";
+          document.getElementById("editToggleBtn").textContent =
+            T("viewDashboard");
+        } else {
+          dash.style.display = "block";
+          panel.style.display = "none";
+          document.getElementById("editToggleBtn").textContent = T("editData");
+        }
+      }
+
+      function collectRows(containerId, mapFn) {
+        return [...document.querySelectorAll("#" + containerId + " .row-line")]
+          .map(mapFn)
+          .filter(Boolean);
+      }
+
+      async function saveDashboard() {
+        if (!currentData) return;
+        const statusEl = document.getElementById("saveStatus");
+
+        // Extra safety net: block saving here too if this role can't edit
+        // (the Edit Data button is already hidden for these roles by auth-guard.js)
+        if (window.canEditDashboard !== true) {
+          if (statusEl) {
+            statusEl.textContent = T("noAccess");
+            statusEl.style.color = "var(--danger)";
+            statusEl.style.fontWeight = "800";
+          }
+          return;
+        }
+
+        const payload = {
+          id: currentData.id || 1,
+          contract_value_no_vat: nullableNumber(
+            document.getElementById("f_contract_value_no_vat").value,
+          ),
+          contract_value_vat: nullableNumber(
+            document.getElementById("f_contract_value_vat").value,
+          ),
+          approved_change_order:
+            document.getElementById("f_approved_change_order").value || null,
+          contract_finish_phase1:
+            document.getElementById("f_contract_finish_phase1").value || null,
+          finish_date_after_eot:
+            document.getElementById("f_finish_date_after_eot").value || null,
+          expected_finish_date:
+            document.getElementById("f_expected_finish_date").value || null,
+          manpower_planned: nullableNumber(
+            document.getElementById("f_manpower_planned").value,
+          ),
+          manpower_actual: nullableNumber(
+            document.getElementById("f_manpower_actual").value,
+          ),
+          spi: nullableNumber(document.getElementById("f_spi").value),
+          cash_flow_ev: nullableNumber(
+            document.getElementById("f_cash_flow_ev").value,
+          ),
+          cash_flow_ai: nullableNumber(
+            document.getElementById("f_cash_flow_ai").value,
+          ),
+          cash_flow_pv: nullableNumber(
+            document.getElementById("f_cash_flow_pv").value,
+          ),
+          weekly_table: collectRows("weeklyRows", (row) => {
+            const week = row.querySelector(".w-week").value.trim();
+            if (!week) return null;
+            return {
+              ...row._source,
+              week,
+              actual: nullableNumber(row.querySelector(".w-actual").value),
+              plan: nullableNumber(row.querySelector(".w-plan").value),
+            };
+          }),
+          scurve_data: collectRows("scurveRows", (row) => {
+            const week = row.querySelector(".s-week").value.trim();
+            if (!week) return null;
+            return {
+              ...row._source,
+              week,
+              planned_cost: nullableNumber(
+                row.querySelector(".s-planned").value,
+              ),
+              actual_cost: nullableNumber(row.querySelector(".s-actual").value),
+            };
+          }),
+          manpower_data: collectRows("manpowerRows", (row) => {
+            const week = row.querySelector(".m-week").value.trim();
+            if (!week) return null;
+            return {
+              ...row._source,
+              week,
+              planned: nullableNumber(row.querySelector(".m-planned").value),
+              actual: nullableNumber(row.querySelector(".m-actual").value),
+            };
+          }),
+          updated_at: new Date().toISOString(),
+        };
+
+        async function doSave() {
+          if (window.canEditDashboard !== true) {
+            statusEl.textContent = T("noAccess");
+            return;
+          }
+          try {
+            statusEl.textContent = T("saving");
+            statusEl.style.color = "var(--text-muted)";
+            statusEl.style.fontWeight = "700";
+
+            const { error } = await client
+              .from("project_performance")
+              .upsert(payload);
+
+            if (error) {
+              statusEl.textContent = T("saveError");
+              statusEl.style.color = "var(--danger)";
+              statusEl.style.fontWeight = "800";
+              return;
+            }
+
+            statusEl.textContent = T("saveSuccess");
+            statusEl.style.color = "var(--success-text)";
+            statusEl.style.fontWeight = "800";
+            setTimeout(() => location.reload(), 1500);
+          } catch (e) {
+            statusEl.textContent = T("saveError");
+            statusEl.style.color = "var(--danger)";
+            statusEl.style.fontWeight = "800";
+          }
+        }
+
+        if (typeof window.guardUpload === "function") {
+          try {
+            window.guardUpload(doSave);
+          } catch (e) {
+            statusEl.textContent = T("confirmationFailed");
+            statusEl.style.color = "var(--danger)";
+          }
+        } else {
+          statusEl.textContent = T("confirmationFailed");
+        }
+      }
+    </script>
+  </body>
+</html>

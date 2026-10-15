@@ -1,0 +1,13 @@
+/* Weekly Report 05 reference: cyan frame, blue discipline bands, four-photo sheets. */
+:root { --report-blue:#2444ba; --report-blue-bright:#285eea; --report-cyan:#16afe3; --report-ink:#30435e; --report-line:#dfe7f2; }
+.pf-page,.photo-print-page { border:1.6px solid var(--report-cyan); border-radius:20px; background:white; }
+.pv-cat-title,.report-discipline-title { background:linear-gradient(110deg,#243d9d,#285eea); color:white; padding:9px 13px; border-radius:6px; font-size:13px; font-weight:700; margin-block:14px 7px; break-after:avoid; }
+.pv-header { border-bottom:2px solid var(--report-blue); }
+.pv-header h2 { color:var(--report-blue); }
+.pv-work-table,.report-discipline-table { width:100%; border:1px solid var(--report-line); border-radius:7px; border-spacing:0; overflow:hidden; color:var(--report-ink); }
+.pv-work-table th,.report-discipline-table th { color:white; background:var(--report-blue); font-size:11px; padding:9px; text-align:start; }
+.pv-work-table td,.report-discipline-table td { font-size:12px; padding:10px; border-bottom:1px solid var(--report-line); text-align:start; overflow-wrap:anywhere; }
+.pv-work-table tbody tr:nth-child(even),.report-discipline-table tbody tr:nth-child(even) { background:#f5f7fb; }
+.pv-photos-title,.photo-print-page .photo-page-title { background:var(--report-cyan); color:white; border-radius:6px; text-align:center; font-weight:700; padding:10px; }
+.pv-photo-caption,.photo-print-page .photo-caption { display:table; max-width:100%; margin:8px auto 0; border:1px solid var(--report-blue); border-radius:20px; padding:5px 13px; font-size:12px; line-height:1.35; color:var(--report-blue); font-weight:600; overflow-wrap:anywhere; }
+.report-works-card>.section-title { color:var(--report-blue); }

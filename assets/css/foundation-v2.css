@@ -1,0 +1,61 @@
+/* Geometry overrides for the legacy shell; all color tokens live in design-system.css. */
+body.mdceo-shell { padding-inline-start: var(--sidebar-width); }
+.mdceo-shell .header { background: transparent !important; color: var(--text-main) !important; width: 100% !important; margin-inline-start: 0 !important; padding: 24px 32px !important; justify-content: flex-start !important; text-align: start !important; box-shadow: none !important; font-size: var(--type-title) !important; }
+.mdceo-shell .header > .mdceo-mark { display: none; }
+body .mdceo-sidebar { position: fixed !important; top: 0 !important; height: 100dvh !important; width: var(--sidebar-width) !important; flex-direction: column !important; overflow-y: auto !important; background: var(--sidebar-bg) !important; padding: 28px 16px 72px !important; gap: 20px !important; }
+.mdceo-sidebar-brand { display: block; color: var(--sidebar-text); font-size: 26px; font-weight: 800; text-decoration: none; letter-spacing: .04em; padding: 8px 12px 24px; }
+.mdceo-primary-nav, .mdceo-legacy-nav { display: grid; gap: 6px; }
+body .mdceo-sidebar :is(a,button).nav-btn { flex-direction: row !important; text-align: start !important; justify-content: flex-start !important; padding: 12px !important; font-size: 14px !important; color: var(--sidebar-text) !important; border: 0 !important; border-radius: var(--radius-sm) !important; }
+body.nav-collapsed .mdceo-sidebar { transform: translateX(-130%) !important; }
+[dir="rtl"] body.nav-collapsed .mdceo-sidebar { transform: translateX(130%) !important; }
+.mdceo-sidebar .nav-btn.active { background: var(--primary) !important; box-shadow: var(--shadow-sm) !important; }
+.mdceo-document-tools { color: var(--sidebar-text); font-size: 13px; }
+.mdceo-document-tools summary { cursor: pointer; padding: 12px; }
+.mdceo-topbar { min-height: 72px; display: flex; align-items: center; gap: 16px; padding: 16px 32px; border-bottom: 1px solid var(--border); background: var(--bg-card); }
+.mdceo-project-label { font-size: 14px; font-weight: 700; }
+.mdceo-nav-search { width: min(360px, 35vw); margin-inline-end: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--bg-main); color: var(--text-main); }
+.mdceo-language { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; background: var(--bg-card); color: var(--text-main); cursor: pointer; }
+.mdceo-account { font-weight: 600; font-size: 14px; }
+.mdceo-topbar .mdceo-account-menu { position: relative !important; inset-inline-end: auto !important; top: auto !important; transform: none !important; }
+.mdceo-topbar .mdceo-account-avatar { background: var(--primary-light) !important; color: var(--primary-dark) !important; border-color: var(--border) !important; }
+.mdceo-shell #navToggleBtn { display: flex; top: auto; bottom: 18px; inset-inline-start: 18px; background: var(--sidebar-bg); border-radius: var(--radius-sm); }
+.mdceo-shell.nav-collapsed .header { width: 100% !important; }
+.mdceo-shell .topbar { background: var(--bg-card) !important; color: var(--text-main) !important; }
+.mdceo-shell .topbar :is(h1,.meta,.btn-print,.btn-edit,.report-subtitle) { color: var(--text-main) !important; }
+.mdceo-shell .topbar :is(.logo-name,#updatedMeta,#logoLeftName,#logoRightName) { color: var(--text-muted) !important; }
+.mdceo-shell .gauge-label.planned { color: var(--success-text) !important; }
+.mdceo-shell .cash-item .lbl[style*="#ef4444"] { color: var(--danger-soft-text) !important; }
+.mdceo-shell .msg-box.error { color: var(--danger-soft-text) !important; }
+.mdceo-shell .topbar :is(.btn-print,.btn-edit) { border-color: var(--border); background: var(--primary-light); }
+.mdceo-shell [hidden] { display: none !important; }
+.mdceo-kpi { background: var(--bg-card); padding: 20px; border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); display: grid; gap: 8px; }
+.mdceo-kpi-value { font-size: var(--type-kpi); color: var(--primary); font-variant-numeric: tabular-nums; }
+.mdceo-kpi-label, .mdceo-kpi-detail { color: var(--text-muted); }
+.mdceo-badge { padding: 4px 10px; border-radius: var(--radius-pill); font-size: 12px; background: var(--primary-light); color: var(--primary-dark); }
+.mdceo-badge-critical, .mdceo-badge-high { color: var(--danger-soft-text); background: var(--danger-soft); }
+.mdceo-badge-medium { color: var(--warning-text); background: var(--warning-soft); }
+.mdceo-badge-low { color: var(--success-text); background: var(--success-soft); }
+.mdceo-empty { text-align: center; padding: 40px 24px; color: var(--text-muted); border: 1px dashed var(--border); border-radius: var(--radius-md); }
+.mdceo-skeleton { height: 100px; border-radius: var(--radius-md); background: linear-gradient(90deg, var(--bg-main), var(--border), var(--bg-main)); background-size: 200% 100%; animation: mdceo-skeleton 1.5s linear infinite; }
+@keyframes mdceo-skeleton { to { background-position: -200% 0; } }
+.mdceo-table-wrap { overflow: auto; }
+.mdceo-table { width: 100%; border-collapse: collapse; text-align: start; }
+.mdceo-table th, .mdceo-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.mdceo-table th { background: var(--primary-light); text-align: start; }
+.mdceo-tabs, .mdceo-filter-bar, .mdceo-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-block: 16px; }
+.mdceo-tab, .mdceo-page-button { padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: var(--text-main); cursor: pointer; }
+.mdceo-tab[aria-selected="true"] { background: var(--primary); color: var(--sidebar-text); }
+.mdceo-page-button:disabled { opacity: .55; cursor: default; }
+@media (max-width: 820px) {
+  body.mdceo-shell { padding-inline-start: 0 !important; }
+  .mdceo-shell:not(.nav-collapsed) .mdceo-sidebar { transform: translateX(0) !important; }
+  .mdceo-topbar { padding: 12px 16px; gap: 8px; flex-wrap: wrap; padding-inline-start: 64px; }
+  .mdceo-nav-search { width: 100%; order: 4; }
+  .mdceo-account { margin-inline-start: auto; }
+  .mdceo-shell #navToggleBtn { top: 16px; bottom: auto; }
+  .mdceo-shell .header { padding: 20px 16px !important; font-size: 22px !important; }
+}
+@media print {
+  body.mdceo-shell { padding-inline-start: 0 !important; }
+  .mdceo-sidebar, .mdceo-topbar, #navToggleBtn { display: none !important; }
+}

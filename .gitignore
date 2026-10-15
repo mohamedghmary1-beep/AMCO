@@ -1,0 +1,23 @@
+# Local recovery, downloaded tools and preview artifacts
+.rollback/
+.tools/
+tmp/
+output/
+_site/
+.vscode/
+.idea/
+node_modules/
+__pycache__/
+*.pyc
+*.log
+Thumbs.db
+.DS_Store
+
+# Credentials and machine-specific configuration
+.env
+.env.*
+!.env.example
+.aws/
+.codex/
+*.pem
+*.key
